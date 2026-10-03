@@ -25,19 +25,34 @@ app.use((req, res, next) => {
 });
 
 server.on('request', (req, res) => {
-    if (bareServer.shouldRoute(req)) {
-        bareServer.routeRequest(req, res);
-    } else {
-        app(req, res);
+    try {
+        if (bareServer.shouldRoute(req)) {
+            bareServer.routeRequest(req, res);
+            return;
+        }
+    } catch (err) {
+        console.error('Bare route failed:', err);
+        res.statusCode = 404;
+        res.end('Not Found');
+        return;
     }
+
+    app(req, res);
 });
 
 server.on('upgrade', (req, socket, head) => {
-    if (bareServer.shouldRoute(req)) {
-        bareServer.routeUpgrade(req, socket, head);
-    } else {
+    try {
+        if (bareServer.shouldRoute(req)) {
+            bareServer.routeUpgrade(req, socket, head);
+            return;
+        }
+    } catch (err) {
+        console.error('Bare upgrade failed:', err);
         socket.end();
+        return;
     }
+
+    socket.end();
 });
 
 app.get('/', (req, res) => {
@@ -51,23 +66,21 @@ app.get('/index', (req, res) => {
 const PORT = 3000;
 server.on('listening', () => {
     const address = server.address();
-
-    console.log("Listening on:");
+    console.log('Listening on:');
     console.log(`\thttp://localhost:${address.port}`);
     console.log(`\thttp://${hostname()}:${address.port}`);
     console.log(
-        `\thttp://${address.family === "IPv6" ? `[${address.address}]` : address.address
-        }:${address.port}`
+        `\thttp://${address.family === 'IPv6' ? `[${address.address}]` : address.address}:${address.port}`
     );
 });
 
 server.listen({ port: PORT });
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
 
 function shutdown() {
-    console.log("SIGTERM signal received: closing HTTP server");
+    console.log('SIGTERM signal received: closing HTTP server');
     server.close();
     bareServer.close();
     process.exit(0);
