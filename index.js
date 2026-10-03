@@ -13,11 +13,29 @@ const bareServer = createBareServer('/b/');
 const shouldBypassProxy = (value) => {
     if (!value) return false;
     const lower = value.toLowerCase();
-    return lower.includes('youtube.com') ||
+    return (
+        // YouTube
+        lower.includes('youtube.com') ||
         lower.includes('youtubei.googleapis.com') ||
         lower.includes('googlevideo.com') ||
         lower.includes('ytimg.com') ||
-        lower.includes('ggpht.com');
+        lower.includes('ggpht.com') ||
+        // Netflix
+        lower.includes('netflix.com') ||
+        lower.includes('nflxext.com') ||
+        lower.includes('nflximg.net') ||
+        lower.includes('nflxso.net') ||
+        lower.includes('nflxvideo.net') ||
+        lower.includes('ichnaea.netflix.com') ||
+        lower.includes('dscovrdl.netflix.com') ||
+        // Disney+
+        lower.includes('disneyplus.com') ||
+        lower.includes('disney-plus.net') ||
+        lower.includes('disneycdn.net') ||
+        lower.includes('dssott.com') ||
+        lower.includes('mxsnowflake.execute-api.us-east-1.amazonaws.com') ||
+        lower.includes('api.disneyplus.com')
+    );
 };
 
 const sanitizeHeaders = (headers) => {
@@ -87,7 +105,7 @@ server.on('request', async (req, res) => {
             res.end(buffer);
             return;
         } catch (error) {
-            console.error('YouTube proxy bypass failed:', error);
+            console.error('Streaming service bypass failed:', error);
         }
     }
 
