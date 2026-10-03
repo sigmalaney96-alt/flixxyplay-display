@@ -8,7 +8,15 @@ import { hostname } from "node:os";
 const server = http.createServer();
 const app = express(server);
 const __dirname = process.cwd();
-const bareServer = createBareServer('/b/');
+
+// Create bare server with proper error handling
+let bareServer;
+try {
+    bareServer = createBareServer('/b/');
+} catch (err) {
+    console.error('Failed to create bare server:', err);
+    process.exit(1);
+}
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -24,35 +32,36 @@ app.use((req, res, next) => {
     next();
 });
 
-server.on('request', (req, res) => {
-    try {
-        if (bareServer.shouldRoute(req)) {
-            bareServer.routeRequest(req, res);
-            return;
+server.on('request', async (req, res) => {
+    // Check if this should be routed to bare server
+    if (req.url.startsWith('/b/')) {
+        try {
+            await bareServer.routeRequest(req, res);
+        } catch (err) {
+            console.error('Bare server error:', err);
+            if (!res.headersSent) {
+                res.writeHead(500, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: 'Proxy error', message: err.message }));
+            }
         }
-    } catch (err) {
-        console.error('Bare route failed:', err);
-        res.statusCode = 404;
-        res.end('Not Found');
-        return;
+    } else {
+        // Route to express app
+        app(req, res);
     }
-
-    app(req, res);
 });
 
-server.on('upgrade', (req, socket, head) => {
-    try {
-        if (bareServer.shouldRoute(req)) {
-            bareServer.routeUpgrade(req, socket, head);
-            return;
+server.on('upgrade', async (req, socket, head) => {
+    // Check if this should be routed to bare server
+    if (req.url.startsWith('/b/')) {
+        try {
+            await bareServer.routeUpgrade(req, socket, head);
+        } catch (err) {
+            console.error('Bare upgrade error:', err);
+            socket.end();
         }
-    } catch (err) {
-        console.error('Bare upgrade failed:', err);
+    } else {
         socket.end();
-        return;
     }
-
-    socket.end();
 });
 
 app.get('/', (req, res) => {
@@ -63,7 +72,12 @@ app.get('/index', (req, res) => {
     res.sendFile(path.join(process.cwd(), '/public/index.html'));
 });
 
-const PORT = 3000;
+// Catch-all for unmatched routes
+app.use((req, res) => {
+    res.status(404).send('Not Found');
+});
+
+const PORT = process.env.PORT || 3000;
 server.on('listening', () => {
     const address = server.address();
     console.log('Listening on:');
@@ -82,6 +96,6 @@ process.on('SIGTERM', shutdown);
 function shutdown() {
     console.log('SIGTERM signal received: closing HTTP server');
     server.close();
-    bareServer.close();
+    if (bareServer) bareServer.close();
     process.exit(0);
 }
