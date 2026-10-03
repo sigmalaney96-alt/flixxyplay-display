@@ -2,8 +2,12 @@
 const appRedirects = {
     'n': 'https://netflix.com',
     'd': 'https://disneyplus.com',
-    'yt': 'https://youtube.com'
+    'yt': 'https://youtube.com',
+    'flixbrowser': 'https://search.yahoo.com'
 };
+
+// Apps that show the navbar
+const appsWithNavbar = ['flixbrowser'];
 
 // Get query parameters from URL
 function getQueryParam(paramName) {
@@ -11,18 +15,40 @@ function getQueryParam(paramName) {
     return urlParams.get(paramName);
 }
 
+// Toggle navbar visibility based on app
+function toggleNavbar(appParam) {
+    const navbar = document.getElementById('navbar');
+    const iframe = document.getElementById('iframeWindow');
+    
+    if (appsWithNavbar.includes(appParam)) {
+        navbar.classList.remove('hidden');
+        iframe.classList.add('with-navbar');
+        iframe.classList.remove('no-navbar');
+    } else {
+        navbar.classList.add('hidden');
+        iframe.classList.add('no-navbar');
+        iframe.classList.remove('with-navbar');
+    }
+}
+
 // Initialize on page load
 window.addEventListener('load', () => {
     const appParam = getQueryParam('app');
     
     if (appParam && appRedirects[appParam]) {
-        // Redirect to the specified app
+        // Toggle navbar visibility
+        toggleNavbar(appParam);
+        
+        // Load the specified app
         const url = appRedirects[appParam];
         document.getElementById('iframeWindow').src = __uv$config.prefix + __uv$config.encodeUrl(url);
+    } else {
+        // Default: hide navbar
+        toggleNavbar(null);
     }
 });
 
-// Keep existing search functionality for manual input
+// Search button functionality
 document.getElementById("searchButton").onclick = function (event) {
     event.preventDefault();
 
@@ -37,7 +63,7 @@ document.getElementById("searchButton").onclick = function (event) {
         }
     }
 
-    iframeWindow.src = __uv$config.prefix + __uv$config.encodeUrl(url);
+    document.getElementById('iframeWindow').src = __uv$config.prefix + __uv$config.encodeUrl(url);
 };
 
 // Makes it so you can press enter to submit
