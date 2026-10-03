@@ -1,11 +1,60 @@
 .iframeWindow {
     position: absolute;
     width: 100vw;
-    height: 100vh;
     border: 0;
     padding: 0;
     margin: 0;
     left: 0;
-    top: 0;
     background-color: #fff;
+}
+
+.iframeWindow.with-navbar {
+    height: 90vh;
+    top: 10vh;
+}
+
+.iframeWindow.no-navbar {
+    height: 100vh;
+    top: 0;
+}
+
+.navbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 10vh;
+    display: flex;
+    background-color: #25252a;
+    padding: 0;
+    margin: 0;
+    border: 0;
+    z-index: 1000;
+}
+
+.navbar.hidden {
+    display: none;
+}
+
+#urlInput {
+    flex: 1;
+    padding: 0;
+    padding-left: 0.5em;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    color: aliceblue;
+    background-color: #25252a;
+    font-size: 5vh;
+}
+
+#searchButton {
+    width: 20vw;
+    margin: 0;
+    border: 0;
+    outline: 0;
+    color: #141414;
+    background-color: aliceblue;
+    font-size: 5vh;
+    cursor: pointer;
 }
