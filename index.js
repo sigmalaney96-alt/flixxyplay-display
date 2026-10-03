@@ -10,6 +10,30 @@ const app = express(server);
 const __dirname = process.cwd();
 const bareServer = createBareServer('/b/');
 
+const shouldBypassProxy = (value) => {
+    if (!value) return false;
+    const lower = value.toLowerCase();
+    return lower.includes('youtube.com') ||
+        lower.includes('youtubei.googleapis.com') ||
+        lower.includes('googlevideo.com') ||
+        lower.includes('ytimg.com') ||
+        lower.includes('ggpht.com');
+};
+
+const sanitizeHeaders = (headers) => {
+    const safeHeaders = { ...headers };
+
+    delete safeHeaders.host;
+    delete safeHeaders.connection;
+    delete safeHeaders['content-length'];
+    delete safeHeaders['transfer-encoding'];
+    delete safeHeaders['x-bare-url'];
+    delete safeHeaders['x-bare-host'];
+    delete safeHeaders['x-bare-protocol'];
+
+    return safeHeaders;
+};
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(__dirname + '/public'));
@@ -23,7 +47,50 @@ app.use((req, res, next) => {
     next();
 });
 
-server.on('request', (req, res) => {
+server.on('request', async (req, res) => {
+    const bareUrl = req.headers['x-bare-url'];
+
+    if (shouldBypassProxy(typeof bareUrl === 'string' ? bareUrl : '')) {
+        try {
+            const target = new URL(bareUrl);
+            const requestHeaders = sanitizeHeaders(req.headers);
+
+            if (!['GET', 'HEAD'].includes(req.method)) {
+                const bodyChunks = [];
+                for await (const chunk of req) {
+                    bodyChunks.push(chunk);
+                }
+                requestHeaders['content-length'] = Buffer.byteLength(Buffer.concat(bodyChunks)).toString();
+                requestHeaders.origin = target.origin;
+
+                const response = await fetch(target.toString(), {
+                    method: req.method,
+                    headers: requestHeaders,
+                    body: Buffer.concat(bodyChunks),
+                });
+
+                const headers = Object.fromEntries(response.headers.entries());
+                res.writeHead(response.status, headers);
+                const buffer = Buffer.from(await response.arrayBuffer());
+                res.end(buffer);
+                return;
+            }
+
+            const response = await fetch(target.toString(), {
+                method: req.method,
+                headers: requestHeaders,
+            });
+
+            const headers = Object.fromEntries(response.headers.entries());
+            res.writeHead(response.status, headers);
+            const buffer = Buffer.from(await response.arrayBuffer());
+            res.end(buffer);
+            return;
+        } catch (error) {
+            console.error('YouTube proxy bypass failed:', error);
+        }
+    }
+
     if (bareServer.shouldRoute(req)) {
         bareServer.routeRequest(req, res);
     } else {
